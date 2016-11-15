@@ -51,7 +51,7 @@ function wc_sendsms_main()
         <p>Exemplu: Dacă dorești să trimiți un mesaj când se schimbă statusul comenzii în finalizată (Completed) atunci va trebui să completezi un mesaj în câmpul text <strong>"Mesaj: Completed"</strong>.</p><br />
         <p>Poți introduce variabile care se vor completa în funcție de datele de comandă.</p>
         <p>Exemplu mesaj: <strong>Salut {billing_first_name}. Comanda ta cu numarul {order_number} a fost finalizata.</strong></p>
-        <br /><br /><p style="text-align: center"><img src="<?=plugin_dir_url(__FILE__).'images/ameya.png'?>" style="width: 200px; height: auto;" /></p>
+        <br /><br /><p style="text-align: center"><a href="https://ameya.ro" target="_blank"><img src="<?=plugin_dir_url(__FILE__).'images/ameya.png'?>" style="width: 200px; height: auto;" /></a></p>
     </div>
     <?php
 }
