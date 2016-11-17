@@ -3,7 +3,7 @@
 Plugin Name: SendSMS - WooCommerce
 Plugin URI: https://ameya.ro/
 Description: Acest modul permite trimiterea de sms-uri la schimbarea de status al comenzilor WooCommerce
-Version: 1.0.0
+Version: 1.0.1
 Author: Ameya Solutions
 Author URI: https://ameya.ro
 */
@@ -142,7 +142,7 @@ function wc_sendsms_settings_display_password()
 
 function wc_sendsms_settings_display_content()
 {
-    echo '<p>Variabile disponibile: {billing_first_name}, {billing_last_name}, {shipping_first_name}, {shipping_last_name}, {order_number}</p><br />';
+    echo '<p>Variabile disponibile: {billing_first_name}, {billing_last_name}, {shipping_first_name}, {shipping_last_name}, {order_number}, {order_date}</p><br />';
     $options = get_option('wc_sendsms_plugin_options');
     if (!empty($options) && is_array($options) && isset($options['content'])) {
         $content = $options['content'];
@@ -196,7 +196,8 @@ function wc_sendsms_order_status_changed($order_id, $checkout = null)
                 '{billing_last_name}' => wc_sendsms_clean_diacritice($order->billing_last_name),
                 '{shipping_first_name}' => wc_sendsms_clean_diacritice($order->shipping_first_name),
                 '{shipping_last_name}' => wc_sendsms_clean_diacritice($order->shipping_last_name),
-                '{order_number}' => $order_id
+                '{order_number}' => $order_id,
+                '{order_date}' => date('d.m.Y', strtotime($order->order_date))
             );
             foreach ($replace as $key => $value) {
                 $message = str_replace($key, $value, $message);
