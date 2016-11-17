@@ -3,7 +3,7 @@
 Plugin Name: SendSMS - WooCommerce
 Plugin URI: https://ameya.ro/
 Description: Acest modul permite trimiterea de sms-uri la schimbarea de status al comenzilor WooCommerce
-Version: 1.0.1
+Version: 1.0.2
 Author: Ameya Solutions
 Author URI: https://ameya.ro
 */
@@ -87,6 +87,13 @@ function wc_sendsms_admin_init()
         'wc_sendsms_plugin_login'
     );
     add_settings_field(
+        'wc_sendsms_plugin_options_from',
+        __('Label expeditor', 'wc_sendsms'),
+        'wc_sendsms_settings_display_from',
+        'wc_sendsms_plugin',
+        'wc_sendsms_plugin_login'
+    );
+    add_settings_field(
         'wc_sendsms_plugin_options_content',
         __('Statusuri', 'wc_sendsms'),
         'wc_sendsms_settings_display_content',
@@ -140,6 +147,18 @@ function wc_sendsms_settings_display_password()
     <input id="wc_sendsms_settings_password" name="wc_sendsms_plugin_options[password]" type="password" value="'.$password.'" style="width: 400px;" />';
 }
 
+function wc_sendsms_settings_display_from()
+{
+    $options = get_option('wc_sendsms_plugin_options');
+    if (!empty($options) && is_array($options) && isset($options['from'])) {
+        $from = $options['from'];
+    } else {
+        $from = '';
+    }
+    echo '
+    <input id="wc_sendsms_settings_from" name="wc_sendsms_plugin_options[from]" type="text" value="'.$from.'" style="width: 400px;" /> <span>maxim 11 caractere alfa numerice</span>';
+}
+
 function wc_sendsms_settings_display_content()
 {
     echo '<p>Variabile disponibile: {billing_first_name}, {billing_last_name}, {shipping_first_name}, {shipping_last_name}, {order_number}, {order_date}</p><br />';
@@ -186,6 +205,11 @@ function wc_sendsms_order_status_changed($order_id, $checkout = null)
     } else {
         $password = '';
     }
+    if (!empty($options) && is_array($options) && isset($options['from'])) {
+        $from = $options['from'];
+    } else {
+        $from = '';
+    }
 
     if (!empty($username) && !empty($password)) {
         if (isset($content['wc-' . $status]) && !empty($content['wc-' . $status])) {
@@ -208,17 +232,17 @@ function wc_sendsms_order_status_changed($order_id, $checkout = null)
 
             if (!empty($phone)) {
                 # send sms
-                wc_sendsms_send($username, $password, $phone, $message);
+                wc_sendsms_send($username, $password, $phone, $message, $from);
             }
         }
     }
 }
 
-function wc_sendsms_send($username, $password, $phone, $message)
+function wc_sendsms_send($username, $password, $phone, $message, $from)
 {
     $curl = curl_init();
     curl_setopt($curl, CURLOPT_HEADER, 1);
-    curl_setopt($curl, CURLOPT_URL, 'http://api.sendsms.ro/json?action=message_send&username='.urlencode($username).'&password='.urlencode($password).'&to='.urlencode($phone).'&text='.urlencode($message));
+    curl_setopt($curl, CURLOPT_URL, 'http://api.sendsms.ro/json?action=message_send&username='.urlencode($username).'&password='.urlencode($password).'&from='.urlencode($from).'&to='.urlencode($phone).'&text='.urlencode($message));
     curl_setopt($curl, CURLINFO_HEADER_OUT, true);
     curl_setopt($curl, CURLOPT_HTTPHEADER, array("Connection: keep-alive"));
 
