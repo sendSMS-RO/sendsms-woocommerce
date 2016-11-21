@@ -3,7 +3,7 @@
 Plugin Name: SendSMS - WooCommerce
 Plugin URI: https://ameya.ro/
 Description: Acest modul permite trimiterea de sms-uri la schimbarea de status al comenzilor WooCommerce
-Version: 1.0.2
+Version: 1.0.3
 Author: Ameya Solutions
 Author URI: https://ameya.ro
 */
@@ -243,10 +243,10 @@ function wc_sendsms_send($username, $password, $phone, $message, $from)
     $curl = curl_init();
     curl_setopt($curl, CURLOPT_HEADER, 1);
     curl_setopt($curl, CURLOPT_URL, 'http://api.sendsms.ro/json?action=message_send&username='.urlencode($username).'&password='.urlencode($password).'&from='.urlencode($from).'&to='.urlencode($phone).'&text='.urlencode($message));
-    curl_setopt($curl, CURLINFO_HEADER_OUT, true);
     curl_setopt($curl, CURLOPT_HTTPHEADER, array("Connection: keep-alive"));
+    curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
 
-    curl_exec($curl);
+    $status = curl_exec($curl);
 }
 
 function wc_sendsms_validate_phone($phone)
