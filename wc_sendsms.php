@@ -3,18 +3,113 @@
 Plugin Name: SendSMS - WooCommerce
 Plugin URI: https://ameya.ro/
 Description: Acest modul permite trimiterea de sms-uri la schimbarea de status al comenzilor WooCommerce
-Version: 1.0.3
+Version: 1.0.5
 Author: Ameya Solutions
 Author URI: https://ameya.ro
 */
 
 $pluginDir = plugin_dir_path(__FILE__);
 $pluginDirUrl = plugin_dir_url(__FILE__);
+global $wc_sendsms_db_version;
+$wc_sendsms_db_version = '1.1';
 
-if ( !in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) ) ) {
+if (!in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
     return;
 }
 
+# history table
+if (!class_exists('WP_List_Table')) {
+    require_once(ABSPATH . 'wp-admin/includes/class-wp-list-table.php');
+}
+
+include 'HistoryListTable.php';
+
+# create database
+function wc_sendsms_install()
+{
+    global $wpdb;
+    global $wc_sendsms_db_version;
+
+    $table_name = $wpdb->prefix . 'wcsendsms_history';
+    $charset_collate = $wpdb->get_charset_collate();
+    $installed_ver = get_option('wc_sendsms_db_version');
+
+    if ($installed_ver != $wc_sendsms_db_version) {
+        $sql = "CREATE TABLE `$table_name` (
+          `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+          `phone` varchar(255) DEFAULT NULL,
+          `status` varchar(255) DEFAULT NULL,
+          `message` varchar(255) DEFAULT NULL,
+          `details` longtext,
+          `content` longtext,
+          `type` varchar(255) DEFAULT NULL,
+          `sent_on` datetime DEFAULT NULL,
+          PRIMARY KEY (`id`)
+        ) $charset_collate;";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+
+        add_option('wc_sendsms_db_version', $wc_sendsms_db_version);
+    }
+}
+register_activation_hook(__FILE__, 'wc_sendsms_install');
+
+# update db structure
+function wc_sendsms_update_db_check()
+{
+    global $wc_sendsms_db_version;
+    if (get_site_option('wc_sendsms_db_version') != $wc_sendsms_db_version) {
+        wc_sendsms_install();
+    }
+}
+add_action('plugins_loaded', 'wc_sendsms_update_db_check');
+
+# add scripts
+function wc_sendsms_load_scripts()
+{
+    # load jquery if it's not loaded
+    if (!wp_script_is('jquery', 'enqueued')) {
+        wp_enqueue_script('jquery');
+    }
+
+    # script for datepicker
+    wp_enqueue_style('datepickerdefault', trailingslashit(plugin_dir_url(__FILE__)).'datepicker/themes/default.css');
+    wp_enqueue_style('datepickerdefaultdate', trailingslashit(plugin_dir_url(__FILE__)).'datepicker/themes/default.date.css');
+    wp_enqueue_script('datepickerdefault', trailingslashit(plugin_dir_url(__FILE__)).'datepicker/picker.js', array('jquery'));
+    wp_enqueue_script('datepickerdefaultdate', trailingslashit(plugin_dir_url(__FILE__)).'datepicker/picker.date.js', array('jquery'));
+    wp_enqueue_script('wcsendsms', trailingslashit(plugin_dir_url(__FILE__)).'wc_sendsms.js', array('jquery'));
+}
+add_action('admin_enqueue_scripts', 'wc_sendsms_load_scripts');
+
+#  checkout field for opt-out
+function wc_sendsms_optout($checkout)
+{
+    $options = get_option('wc_sendsms_plugin_options');
+    if (!empty($options) && is_array($options) && isset($options['optout'])) {
+        $optout = $options['optout'];
+    } else {
+        $optout = '';
+    }
+    if (!empty($optout)) {
+        echo '<div>';
+        woocommerce_form_field('wc_sendsms_optout', array(
+            'type' => 'checkbox',
+            'class' => array('input-checkbox', 'form-row-wide'),
+            'label' => __('&nbsp;Nu doresc sa primesc SMS cu starea comenzii'),
+        ), $checkout->get_value('wc_sendsms_optout'));
+        echo '</div><div style="clear: both">&nbsp;</div>';
+    }
+}
+add_action('woocommerce_after_order_notes', 'wc_sendsms_optout');
+
+function wc_sendsms_optout_update_order_meta($orderId)
+{
+    if (isset($_POST['wc_sendsms_optout'])) {
+        update_post_meta($orderId, 'wc_sendsms_optout', esc_attr($_POST['wc_sendsms_optout']));
+    }
+}
+add_action('woocommerce_checkout_update_order_meta', 'wc_sendsms_optout_update_order_meta');
 
 # admin page
 add_action('admin_menu', 'wc_sendsms_add_menu');
@@ -37,6 +132,24 @@ function wc_sendsms_add_menu()
         'manage_options',
         'wc_sendsms_login',
         'wc_sendsms_login'
+    );
+
+    add_submenu_page(
+        'wc_sendsms_main',
+        __('Istoric', 'wc_sendsms'),
+        __('Istoric', 'wc_sendsms'),
+        'manage_options',
+        'wc_sendsms_history',
+        'wc_sendsms_history'
+    );
+
+    add_submenu_page(
+        'wc_sendsms_main',
+        __('Campanie', 'wc_sendsms'),
+        __('Campanie', 'wc_sendsms'),
+        'manage_options',
+        'wc_sendsms_campaign',
+        'wc_sendsms_campaign'
     );
 }
 
@@ -94,9 +207,37 @@ function wc_sendsms_admin_init()
         'wc_sendsms_plugin_login'
     );
     add_settings_field(
+        'wc_sendsms_plugin_options_simulation',
+        __('Simulare trimitere SMS', 'wc_sendsms'),
+        'wc_sendsms_settings_display_simulation',
+        'wc_sendsms_plugin',
+        'wc_sendsms_plugin_login'
+    );
+    add_settings_field(
+        'wc_sendsms_plugin_options_simulation_number',
+        __('Numar telefon simulare', 'wc_sendsms'),
+        'wc_sendsms_settings_display_simulation_number',
+        'wc_sendsms_plugin',
+        'wc_sendsms_plugin_login'
+    );
+    add_settings_field(
+        'wc_sendsms_plugin_options_optout',
+        __('Opt-out in cos', 'wc_sendsms'),
+        'wc_sendsms_settings_display_optout',
+        'wc_sendsms_plugin',
+        'wc_sendsms_plugin_login'
+    );
+    add_settings_field(
         'wc_sendsms_plugin_options_content',
         __('Statusuri', 'wc_sendsms'),
         'wc_sendsms_settings_display_content',
+        'wc_sendsms_plugin',
+        'wc_sendsms_plugin_login'
+    );
+    add_settings_field(
+        'wc_sendsms_plugin_options_enabled',
+        __('', 'wc_sendsms'),
+        'wc_sendsms_settings_display_enabled',
         'wc_sendsms_plugin',
         'wc_sendsms_plugin_login'
     );
@@ -113,6 +254,296 @@ function wc_sendsms_login()
             <?php do_settings_sections('wc_sendsms_plugin'); ?>
 
             <input name="Submit" type="submit" class="button button-primary button-large" value="<?=__('Salvează', 'wc_sendsms')?>" />
+        </form>
+    </div>
+    <?php
+}
+
+function wc_sendsms_get_woocommerce_product_list()
+{
+    $full_product_list = array();
+    $loop = new WP_Query( array( 'post_type' => array('product', 'product_variation'), 'posts_per_page' => -1 ) );
+
+    while ( $loop->have_posts() ) : $loop->the_post();
+        $theid = get_the_ID();
+        $product = new WC_Product($theid);
+        // its a variable product
+        if( get_post_type() == 'product_variation' ){
+            $parent_id = wp_get_post_parent_id($theid );
+            $sku = get_post_meta($theid, '_sku', true );
+            $thetitle = get_the_title( $parent_id);
+
+    // ****** Some error checking for product database *******
+            // check if variation sku is set
+            if ($sku == '') {
+                if ($parent_id == 0) {
+                    // Remove unexpected orphaned variations.. set to auto-draft
+                    $false_post = array();
+                    $false_post['ID'] = $theid;
+                    $false_post['post_status'] = 'auto-draft';
+                    wp_update_post( $false_post );
+                    if (function_exists(add_to_debug)) add_to_debug('false post_type set to auto-draft. id='.$theid);
+                } else {
+                    // there's no sku for this variation > copy parent sku to variation sku
+                    // & remove the parent sku so the parent check below triggers
+                    $sku = get_post_meta($parent_id, '_sku', true );
+                    if (function_exists(add_to_debug)) add_to_debug('empty sku id='.$theid.'parent='.$parent_id.'setting sku to '.$sku);
+                    update_post_meta($theid, '_sku', $sku );
+                    update_post_meta($parent_id, '_sku', '' );
+                }
+            }
+    // ****************** end error checking *****************
+
+        // its a simple product
+        } else {
+            $sku = get_post_meta($theid, '_sku', true );
+            $thetitle = get_the_title();
+        }
+        // add product to array but don't add the parent of product variations
+        if (!empty($sku)) $full_product_list[] = array($thetitle, $sku, $theid);
+    endwhile; wp_reset_query();
+    // sort into alphabetical order, by title
+    sort($full_product_list);
+    return $full_product_list;
+}
+
+function wc_sendsms_campaign()
+{
+    global $wpdb;
+
+    # get all products
+    $products = wc_sendsms_get_woocommerce_product_list();
+
+    # get all categories
+    $args = array(
+        'number'     => 0,
+        'orderby'    => 'name',
+        'order'      => 'asc',
+        'hide_empty' => '',
+        'include'    => ''
+    );
+    //$product_categories = get_terms('product_cat', $args);
+    $billing_states = $wpdb->get_results('SELECT DISTINCT meta_value FROM '.$wpdb->prefix.'postmeta WHERE meta_key = \'_billing_state\' ORDER BY meta_value ASC');
+
+    # get all orders
+    $query = "select
+        p.ID as order_id,
+        p.post_date,
+        max( CASE WHEN pm.meta_key = '_billing_email' and p.ID = pm.post_id THEN pm.meta_value END ) as billing_email,
+        max( CASE WHEN pm.meta_key = '_billing_first_name' and p.ID = pm.post_id THEN pm.meta_value END ) as _billing_first_name,
+        max( CASE WHEN pm.meta_key = '_billing_last_name' and p.ID = pm.post_id THEN pm.meta_value END ) as _billing_last_name,
+        max( CASE WHEN pm.meta_key = '_billing_address_1' and p.ID = pm.post_id THEN pm.meta_value END ) as _billing_address_1,
+        max( CASE WHEN pm.meta_key = '_billing_address_2' and p.ID = pm.post_id THEN pm.meta_value END ) as _billing_address_2,
+        max( CASE WHEN pm.meta_key = '_billing_city' and p.ID = pm.post_id THEN pm.meta_value END ) as _billing_city,
+        max( CASE WHEN pm.meta_key = '_billing_state' and p.ID = pm.post_id THEN pm.meta_value END ) as _billing_state,
+        max( CASE WHEN pm.meta_key = '_billing_phone' and p.ID = pm.post_id THEN pm.meta_value END ) as _billing_phone,
+        max( CASE WHEN pm.meta_key = '_billing_postcode' and p.ID = pm.post_id THEN pm.meta_value END ) as _billing_postcode,
+        max( CASE WHEN pm.meta_key = '_shipping_first_name' and p.ID = pm.post_id THEN pm.meta_value END ) as _shipping_first_name,
+        max( CASE WHEN pm.meta_key = '_shipping_last_name' and p.ID = pm.post_id THEN pm.meta_value END ) as _shipping_last_name,
+        max( CASE WHEN pm.meta_key = '_shipping_address_1' and p.ID = pm.post_id THEN pm.meta_value END ) as _shipping_address_1,
+        max( CASE WHEN pm.meta_key = '_shipping_address_2' and p.ID = pm.post_id THEN pm.meta_value END ) as _shipping_address_2,
+        max( CASE WHEN pm.meta_key = '_shipping_city' and p.ID = pm.post_id THEN pm.meta_value END ) as _shipping_city,
+        max( CASE WHEN pm.meta_key = '_shipping_state' and p.ID = pm.post_id THEN pm.meta_value END ) as _shipping_state,
+        max( CASE WHEN pm.meta_key = '_shipping_postcode' and p.ID = pm.post_id THEN pm.meta_value END ) as _shipping_postcode,
+        max( CASE WHEN pm.meta_key = '_order_total' and p.ID = pm.post_id THEN pm.meta_value END ) as order_total,
+        max( CASE WHEN pm.meta_key = '_order_tax' and p.ID = pm.post_id THEN pm.meta_value END ) as order_tax,
+        max( CASE WHEN pm.meta_key = '_paid_date' and p.ID = pm.post_id THEN pm.meta_value END ) as paid_date,
+        ( select group_concat( order_item_id separator '|' ) from ".$wpdb->prefix."woocommerce_order_items where order_id = p.ID ) as order_items
+    from
+        ".$wpdb->prefix."posts p 
+        join ".$wpdb->prefix."postmeta pm on p.ID = pm.post_id
+        join ".$wpdb->prefix."woocommerce_order_items oi on p.ID = oi.order_id
+        WHERE post_type = 'shop_order' AND post_status = 'wc-completed'";
+    $filters = array();
+    $where = '';
+    $having = [];
+    if (!empty($_GET['perioada_start'])) {
+        $where .= ' AND post_date >= %s';
+        $filters[] = $_GET['perioada_start'];
+    }
+    if (!empty($_GET['perioada_final'])) {
+        $where .= ' AND post_date <= %s';
+        $filters[] = $_GET['perioada_final'];
+    }
+    if (!empty($_GET['suma'])) {
+        $having[] = 'order_total >= %d';
+        $filters[] = (double)$_GET['suma'];
+    }
+    if (!empty($_GET['produs'])) {
+        $where .= ' AND oi.order_item_name = %s';
+        $filters[] = $_GET['produs'];
+    }
+    if (!empty($_GET['judet'])) {
+        $having[] = '_billing_city = %s';
+        $filters[] = $_GET['judet'];
+    }
+
+    $query .= $where.' group by p.ID';
+    if (!empty($having)) {
+        $query .=' HAVING '.implode(' AND ', $having);
+    }
+//    print_r($filters);
+//    print_r($wpdb->prepare($query, $filters));
+    $orders = $wpdb->get_results($wpdb->prepare($query, $filters));
+
+    $phones = array();
+    if (count($orders)) {
+        foreach ($orders as $order) {
+            $phone = wc_sendsms_validate_phone($order->_billing_phone);
+            if (!empty($phone)) {
+                $phones[] = $phone;
+            }
+        }
+    }
+    $phones = array_unique($phones);
+    ?>
+    <div class="wrap">
+        <h2><?=__('SendSMS - Campanie', 'wc_sendsms')?></h2>
+        <form method="get" action="">
+            <input type="hidden" name="page" value="wc_sendsms_campaign" />
+            <div style="width: 100%; clear: both;">
+                <div style="width: 48%; float: left;">
+                    <p>Perioada <input type="text" class="wcsendsmsdatepicker" name="perioada_start" value="<?=isset($_GET['perioada_start'])?$_GET['perioada_start']:''?>" /> - <input type="text" class="wcsendsmsdatepicker" name="perioada_final" value="<?=isset($_GET['perioada_final'])?$_GET['perioada_final']:''?>" /></p>
+                </div>
+                <div style="width: 48%; float: left">
+                    <p>Suma minima pe comanda: <input type="number" name="suma" value="<?=isset($_GET['suma'])?(int)$_GET['suma']:'0'?>" /></p>
+                </div>
+                <div style="width: 100%; clear: both;">
+                    <div style="width: 48%; float: left;">
+                        <p>Produs cumparat:
+                            <select name="produs">
+                                <option value="">- toate -</option>
+                                <?php
+                                if (count($products)) :
+                                    foreach ($products as $product) :
+                                ?>
+                                <option value="<?=$product[0]?>" <?=isset($_GET['produs']) && $_GET['produs']==$product[0]?'selected="selected"':''?>><?=$product[0]?></option>
+                                <?php
+                                    endforeach;
+                                endif;
+                                ?>
+                            </select>
+                        </p>
+                    </div>
+                    <div style="width: 48%; float: left;">
+                        <p>Judet facturare:
+                            <select name="judet">
+                                <option value="">- toate -</option>
+                                <?php
+                                if (!empty($billing_states)) :
+                                    foreach ($billing_states as $state) :
+                                ?>
+                                <option value="<?=$state->meta_value?>" <?=isset($_GET['judet']) && $_GET['judet']==$state->meta_value?'selected="selected"':''?>><?=$state->meta_value?></option>
+                                <?php endforeach; endif; ?>
+                            </select>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="button button-default button-large">Filtreaza</button>
+        </form>
+        <hr />
+        <h3>Rezultate filtru: <?=count($phones)?> numere de telefon</h3>
+        <div style="width: 100%; clear: both; padding-top: 20px;">
+            <div style="width: 73%; float: left">
+                <p>Mesaj: <br />
+                    <textarea name="content" id="wc_sendsms_content" style="width: 90%; height: 250px;"></textarea>
+                </p>
+            </div>
+            <div style="width: 25%; float: left">
+                <p>Telefoane: <br /></p>
+                <select name="phones" id="wc_sendsms_phones" multiple style="width: 90%; height: 250px">
+                    <?php
+                    if (!empty($phones)) :
+                        foreach ($phones as $phone) :
+                    ?>
+                    <option value="<?=$phone?>" selected><?=$phone?></option>
+                    <?php
+                        endforeach;
+                    endif;
+                    ?>
+                </select>
+            </div>
+        </div>
+        <p style="clear: both;"><button type="submit" class="button button-primary button-large" id="wc_sendsms_send_campaign">Trimite mesajul</button></p>
+    </div>
+    <?php
+}
+
+function wc_sendsms_javascript_send() { ?>
+	<script type="text/javascript" >
+	jQuery(document).ready(function($) {
+	    jQuery('#wc_sendsms_send_campaign').on('click', function() {
+	        jQuery('#wc_sendsms_send_campaign').html('Se trimite...');
+	        jQuery('#wc_sendsms_send_campaign').attr('disabled', 'disabled');
+	        var data = {
+                'action': 'wc_sendsms_campaign',
+                'phones': jQuery('#wc_sendsms_phones').val(),
+                'content': jQuery('#wc_sendsms_content').val()
+            };
+
+            jQuery.post(ajaxurl, data, function(response) {
+                jQuery('#wc_sendsms_send_campaign').html('Trimite mesajul');
+	            jQuery('#wc_sendsms_send_campaign').removeAttr('disabled');
+	            alert(response);
+            });
+        });
+	});
+	</script> <?php
+}
+add_action('admin_footer', 'wc_sendsms_javascript_send');
+
+function wc_sendsms_ajax_send() {
+    if (!empty($_POST['content']) && !empty($_POST['phones'])) {
+        $options = get_option('wc_sendsms_plugin_options');
+        $username = '';
+        $password = '';
+        if (!empty($options) && is_array($options) && isset($options['username'])) {
+            $username = $options['username'];
+        } else {
+            echo 'Nu ati introdus numarul de telefon';
+            wp_die();
+        }
+        if (!empty($options) && is_array($options) && isset($options['password'])) {
+            $password = $options['password'];
+        } else {
+            echo 'Nu ati introdus parola';
+            wp_die();
+        }
+        if (!empty($options) && is_array($options) && isset($options['from'])) {
+            $from = $options['from'];
+        } else {
+            $from = '';
+        }
+        foreach ($_POST['phones'] as $phone) {
+            $phone = wc_sendsms_validate_phone($phone);
+            if (!empty($phone)) {
+                wc_sendsms_send($username, $password, $phone, $_POST['content'], $from, 'campaign');
+            }
+        }
+        echo 'Mesajele au fost trimise';
+    } else {
+        echo 'Trebuie sa completati mesajul si sa alegeti cel putin un numar de telefon';
+    }
+	wp_die();
+}
+add_action('wp_ajax_wc_sendsms_campaign', 'wc_sendsms_ajax_send');
+
+function wc_sendsms_history()
+{
+    ?>
+    <div class="wrap">
+        <h2><?=__('SendSMS - Istoric', 'wc_sendsms')?></h2>
+        <form method="get">
+    <?php
+    $_table_list = new WC_SendSMS_History_List_Table();
+    $_table_list->prepare_items();
+    echo '<input type="hidden" name="page" value="wc_sendsms_history" />';
+
+    $_table_list->views();
+    $_table_list->search_box(__('Caută', 'wc_sendsms' ), 'key');
+    $_table_list->display();
+    ?>
         </form>
     </div>
     <?php
@@ -159,19 +590,66 @@ function wc_sendsms_settings_display_from()
     <input id="wc_sendsms_settings_from" name="wc_sendsms_plugin_options[from]" type="text" value="'.$from.'" style="width: 400px;" /> <span>maxim 11 caractere alfa numerice</span>';
 }
 
+function wc_sendsms_settings_display_simulation()
+{
+    $options = get_option('wc_sendsms_plugin_options');
+    if (!empty($options) && is_array($options) && isset($options['simulation'])) {
+        $simulation = $options['simulation'];
+    } else {
+        $simulation = '';
+    }
+    echo '
+    <input id="wc_sendsms_settings_simulation" name="wc_sendsms_plugin_options[simulation]" type="checkbox" value="1" '.(!empty($simulation)?'checked="checked"':'').' />';
+}
+
+function wc_sendsms_settings_display_simulation_number()
+{
+    $options = get_option('wc_sendsms_plugin_options');
+    if (!empty($options) && is_array($options) && isset($options['simulation_number'])) {
+        $number = $options['simulation_number'];
+    } else {
+        $number = '';
+    }
+    echo '
+    <input id="wc_sendsms_settings_simulation_number" name="wc_sendsms_plugin_options[simulation_number]" type="text" value="'.$number.'" style="width: 400px;" />';
+}
+
+function wc_sendsms_settings_display_optout()
+{
+    $options = get_option('wc_sendsms_plugin_options');
+    if (!empty($options) && is_array($options) && isset($options['optout'])) {
+        $optout = $options['optout'];
+    } else {
+        $optout = '';
+    }
+    echo '
+    <input id="wc_sendsms_settings_optout" name="wc_sendsms_plugin_options[optout]" type="checkbox" value="1" '.(!empty($optout)?'checked="checked"':'').' />';
+}
+
+function wc_sendsms_settings_display_enabled()
+{
+
+}
+
 function wc_sendsms_settings_display_content()
 {
     echo '<p>Variabile disponibile: {billing_first_name}, {billing_last_name}, {shipping_first_name}, {shipping_last_name}, {order_number}, {order_date}</p><br />';
     $options = get_option('wc_sendsms_plugin_options');
     if (!empty($options) && is_array($options) && isset($options['content'])) {
         $content = $options['content'];
+        $enabled = $options['enabled'];
     } else {
         $content = array();
+        $enabled = array();
     }
     $statuses = wc_get_order_statuses();
     foreach ($statuses as $key => $value) {
-        echo '<label>Mesaj: '.$value.'</label><br />
-    <textarea id="wc_sendsms_settings_content_'.$key.'" name="wc_sendsms_plugin_options[content]['.$key.']" style="width: 400px; height: 100px;">'.(isset($content[$key])?$content[$key]:'').'</textarea><br />';
+        $checked = false;
+        if (isset($enabled[$key])) {
+            $checked = true;
+        }
+        echo '<p>Mesaj: '.$value.'</p><p><label><input type="checkbox" name="wc_sendsms_plugin_options[enabled]['.$key.']" value="1" '.($checked?'checked="checked"':'').' /> Activ</label></p>
+    <p><textarea id="wc_sendsms_settings_content_'.$key.'" name="wc_sendsms_plugin_options[content]['.$key.']" style="width: 400px; height: 100px;">'.(isset($content[$key])?$content[$key]:'').'</textarea></p>';
     }
 }
 
@@ -188,12 +666,21 @@ function wc_sendsms_order_status_changed($order_id, $checkout = null)
     global $woocommerce;
     $order = new WC_Order($order_id);
     $status = $order->status;
+    $order_meta = get_post_meta($order_id);
+
+    # check if user opted out for the order
+    if (isset($order_meta['wc_sendsms_optout'])) {
+        return;
+    }
 
     $options = get_option('wc_sendsms_plugin_options');
+
     if (!empty($options) && is_array($options) && isset($options['content'])) {
         $content = $options['content'];
+        $enabled = $options['enabled'];
     } else {
         $content = array();
+        $enabled = array();
     }
     if (!empty($options) && is_array($options) && isset($options['username'])) {
         $username = $options['username'];
@@ -212,7 +699,7 @@ function wc_sendsms_order_status_changed($order_id, $checkout = null)
     }
 
     if (!empty($username) && !empty($password)) {
-        if (isset($content['wc-' . $status]) && !empty($content['wc-' . $status])) {
+        if (isset($content['wc-' . $status]) && !empty($content['wc-' . $status]) && isset($enabled['wc-'.$status])) {
             # replace variables
             $message = $content['wc-' . $status];
             $replace = array(
@@ -227,8 +714,14 @@ function wc_sendsms_order_status_changed($order_id, $checkout = null)
                 $message = str_replace($key, $value, $message);
             }
 
-            # generate valid phone number
-            $phone = wc_sendsms_validate_phone($order->billing_phone);
+            # check if simulation is on and number is entered
+            if (!empty($options) && is_array($options) && isset($options['content']) && isset($options['simulation']) && !empty($options['simulation_number'])) {
+                # generate valid phone number
+                $phone = wc_sendsms_validate_phone($options['simulation_number']);
+            } else {
+                # generate valid phone number
+                $phone = wc_sendsms_validate_phone($order->billing_phone);
+            }
 
             if (!empty($phone)) {
                 # send sms
@@ -238,15 +731,37 @@ function wc_sendsms_order_status_changed($order_id, $checkout = null)
     }
 }
 
-function wc_sendsms_send($username, $password, $phone, $message, $from)
+function wc_sendsms_send($username, $password, $phone, $message, $from, $type = 'order')
 {
+    global $wpdb;
     $curl = curl_init();
-    curl_setopt($curl, CURLOPT_HEADER, 1);
-    curl_setopt($curl, CURLOPT_URL, 'http://api.sendsms.ro/json?action=message_send&username='.urlencode($username).'&password='.urlencode($password).'&from='.urlencode($from).'&to='.urlencode($phone).'&text='.urlencode($message));
+    curl_setopt($curl, CURLOPT_HEADER, 0);
+    curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($curl, CURLOPT_URL, 'https://hub.sendsms.ro/json?action=message_send&username='.urlencode($username).'&password='.urlencode($password).'&from='.urlencode($from).'&to='.urlencode($phone).'&text='.urlencode($message));
     curl_setopt($curl, CURLOPT_HTTPHEADER, array("Connection: keep-alive"));
     curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
 
     $status = curl_exec($curl);
+    $status = json_decode($status, true);
+
+    # history
+    $table_name = $wpdb->prefix . 'wcsendsms_history';
+    $wpdb->query(
+        $wpdb->prepare(
+            "
+                INSERT INTO $table_name
+                (`phone`, `status`, `message`, `details`, `content`, `type`, `sent_on`)
+                VALUES ( %s, %s, %s, %s, %s, %s, %s)
+            ",
+            $phone,
+	        isset($status['status'])?$status['status']:'',
+	        isset($status['message'])?$status['message']:'',
+            isset($status['details'])?$status['details']:'',
+            $message,
+            $type,
+            date('Y-m-d H:i:s')
+        )
+    );
 }
 
 function wc_sendsms_validate_phone($phone)
