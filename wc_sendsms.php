@@ -1,11 +1,14 @@
 <?php
 /*
 Plugin Name: SendSMS - WooCommerce
-Plugin URI: https://ameya.ro/
+Plugin URI: http://www.sendsms.ro
 Description: Acest modul permite trimiterea de sms-uri la schimbarea de status al comenzilor WooCommerce
-Version: 1.0.6
-Author: Ameya Solutions
-Author URI: https://ameya.ro
+Version: 1.0.0
+Author: sendSMS
+Author URI: http://www.sendsms.ro
+License: GPLv2
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: wc_sendsms
 */
 
 $pluginDir = plugin_dir_path(__FILE__);
@@ -96,7 +99,7 @@ function wc_sendsms_optout($checkout)
         woocommerce_form_field('wc_sendsms_optout', array(
             'type' => 'checkbox',
             'class' => array('input-checkbox', 'form-row-wide'),
-            'label' => __('&nbsp;Nu doresc sa primesc SMS cu starea comenzii'),
+            'label' => __('&nbsp;Nu doresc sa primesc SMS cu starea comenzii', 'wc_sendsms'),
         ), $checkout->get_value('wc_sendsms_optout'));
         echo '</div><div style="clear: both">&nbsp;</div>';
     }
@@ -168,15 +171,15 @@ function wc_sendsms_main()
     <div class="wrap">
         <h2><?=__('SendSMS pentru WooCommerce', 'wc_sendsms')?></h2>
         <br />
-        <p>Pentru a folosi modulul, vă rugăm să introduceți datele de autentificare în pagina de configurare.</p><br />
-        <p>Nu aveți cont sendSMS?<br />
-            Înregistrați-vă GRATUIT <a href="http://www.sendsms.ro/ro" target="_blank">aici</a>.<br />
-            Mai multe detalii despre sendSMS puteți afla <a href="http://www.sendsms.ro/ro">aici</a>.</p>
-        <p>În pagina de setări, sub datele de autentificare, veți găsi câte un câmp text pentru fiecare status disponibil în WooCommerce. Va trebui să introduceți un mesaj pentru câmpurile la care doriți să se trimită sms de înștiințare. Dacă un câmp va fi gol, atunci sms-ul nu se va trimite.</p>
-        <p>Exemplu: Dacă doriți să trimiteți un mesaj când se schimbă statusul comenzii în finalizată (Completed) atunci va trebui să completați un mesaj în câmpul text <strong>"Mesaj: Completed"</strong>.</p><br />
-        <p>Puteți introduce variabile care se vor completa în funcție de datele de comandă.</p>
-        <p>Exemplu mesaj: <strong>Salut {billing_first_name}. Comanda ta cu numarul {order_number} a fost finalizata.</strong></p>
-        <p>Mesajul introdus nu trebuie să conțină diacritice. Dacă acestea sunt introduse literele cu diacritice vor fi înlocuite cu echivalentul lor fără diacritice.</p>
+        <p><?=__('Pentru a folosi modulul, vă rugăm să introduceți datele de autentificare în pagina de configurare.', 'wc_sendsms')?></p><br />
+        <p><?=__('Nu aveți cont sendSMS?', 'wc_sendsms')?><br />
+            <?=__('Înregistrați-vă GRATUIT', 'wc_sendsms')?> <a href="http://www.sendsms.ro/ro" target="_blank"><?=__('aici', 'wc_sendsms')?></a>.<br />
+            <?=__('Mai multe detalii despre sendSMS puteți afla', 'wc_sendsms')?> <a href="http://www.sendsms.ro/ro"><?=__('aici', 'wc_sendsms')?></a>.</p>
+        <p><?=__('În pagina de setări, sub datele de autentificare, veți găsi câte un câmp text pentru fiecare status disponibil în WooCommerce. Va trebui să introduceți un mesaj pentru câmpurile la care doriți să se trimită sms de înștiințare. Dacă un câmp va fi gol, atunci sms-ul nu se va trimite.', 'wc_sendsms')?></p>
+        <p><?=__('Exemplu: Dacă doriți să trimiteți un mesaj când se schimbă statusul comenzii în finalizată (Completed) atunci va trebui să completați un mesaj în câmpul text', 'wc_sendsms')?> <strong><?=__('"Mesaj: Completed"', 'wc_sendsms')?></strong>.</p><br />
+        <p><?=__('Puteți introduce variabile care se vor completa în funcție de datele de comandă.', 'wc_sendsms')?></p>
+        <p><?=__('Exemplu mesaj:', 'wc_sendsms')?> <strong><?=__('Salut {billing_first_name}. Comanda ta cu numarul {order_number} a fost finalizata.', 'wc_sendsms')?></strong></p>
+        <p><?=__('Mesajul introdus nu trebuie să conțină diacritice. Dacă acestea sunt introduse literele cu diacritice vor fi înlocuite cu echivalentul lor fără diacritice.', 'wc_sendsms')?></p>
         <br /><br /><p style="text-align: center"><a href="http://sendsms.ro" target="_blank"><img src="<?=plugin_dir_url(__FILE__).'images/sendsms_logo.png'?>" /></a></p>
     </div>
     <?php
@@ -325,12 +328,12 @@ function wc_sendsms_test()
     if (isset($_POST) && !empty($_POST)) {
         if (empty($_POST['wc_sendsms_phone'])) {
             echo '<div class="notice notice-error is-dismissible">
-                <p>'.__('Nu ați introdus numărul de telefon!', 'wc-sendsms' ).'</p>
+                <p>'.__('Nu ați introdus numărul de telefon!', 'wc_sendsms').'</p>
             </div>';
         }
         if (empty($_POST['wc_sendsms_message'])) {
             echo '<div class="notice notice-error is-dismissible">
-                <p>'.__('Nu ați introdus un mesaj!', 'wc-sendsms' ).'</p>
+                <p>'.__('Nu ați introdus un mesaj!', 'wc_sendsms').'</p>
             </div>';
         }
         if (!empty($_POST['wc_sendsms_message']) && !empty($_POST['wc_sendsms_phone'])) {
@@ -351,16 +354,16 @@ function wc_sendsms_test()
                 if (!empty($phone)) {
                     wc_sendsms_send($username, $password, $phone, $_POST['wc_sendsms_message'], $from, 'test');
                     echo '<div class="notice notice-success is-dismissible">
-                    <p>' . __('Mesajul a fost trimis', 'wc-sendsms') . '</p>
+                    <p>' . __('Mesajul a fost trimis', 'wc_sendsms') . '</p>
                 </div>';
                 } else {
                     echo '<div class="notice notice-error is-dismissible">
-                    <p>'.__('Numărul de telefon validat este gol!', 'wc-sendsms' ).'</p>
+                    <p>'.__('Numărul de telefon validat este gol!', 'wc_sendsms').'</p>
                 </div>';
                 }
             } else {
                 echo '<div class="notice notice-error is-dismissible">
-                    <p>'.__('Nu ați configurat modulul!', 'wc-sendsms' ).'</p>
+                    <p>'.__('Nu ați configurat modulul!', 'wc_sendsms').'</p>
                 </div>';
             }
         }
@@ -372,19 +375,19 @@ function wc_sendsms_test()
             <table class="form-table">
                 <tbody>
                     <tr>
-                        <th scope="row">Număr de telefon</th>
+                        <th scope="row"><?=__('Număr de telefon', 'wc_sendsms')?></th>
                         <td><input type="text" name="wc_sendsms_phone" style="width: 400px;" /></td>
                     </tr>
                     <tr>
-                        <th scope="row">Mesaj</th>
+                        <th scope="row"><?=__('Mesaj', 'wc_sendsms')?></th>
                         <td>
                             <textarea name="wc_sendsms_message" class="wc_sendsms_content" style="width: 400px; height: 100px;" maxlength="160"></textarea>
-                            <p>160 caractere rămase</p>
+                            <p>160 <?=__('caractere rămase', 'wc_sendsms')?></p>
                         </td>
                     </tr>
                 </tbody>
             </table>
-            <p style="clear: both;"><button type="submit" class="button button-primary button-large" id="wc_sendsms_send_test">Trimite mesajul</button></p>
+            <p style="clear: both;"><button type="submit" class="button button-primary button-large" id="wc_sendsms_send_test"><?=__('Trimite mesajul', 'wc_sendsms')?></button></p>
         </form>
         <script type="text/javascript">
             var wc_sendsms_content = document.getElementsByClassName('wc_sendsms_content');
@@ -393,7 +396,7 @@ function wc_sendsms_test()
                 wc_sendsms_element.onkeyup = function() {
                     var text_length = this.value.length;
                     var text_remaining = 160 - text_length;
-                    this.nextElementSibling.innerHTML = text_remaining + ' caractere rămase';
+                    this.nextElementSibling.innerHTML = text_remaining + ' <?=__('caractere rămase', 'wc_sendsms')?>';
                 };
             }
         </script>
@@ -467,8 +470,7 @@ function wc_sendsms_campaign()
     if (!empty($having)) {
         $query .=' HAVING '.implode(' AND ', $having);
     }
-//    print_r($filters);
-//    print_r($wpdb->prepare($query, $filters));
+
     $orders = $wpdb->get_results($wpdb->prepare($query, $filters));
 
     $phones = array();
@@ -488,16 +490,16 @@ function wc_sendsms_campaign()
             <input type="hidden" name="page" value="wc_sendsms_campaign" />
             <div style="width: 100%; clear: both;">
                 <div style="width: 48%; float: left;">
-                    <p>Perioada <input type="text" class="wcsendsmsdatepicker" name="perioada_start" value="<?=isset($_GET['perioada_start'])?$_GET['perioada_start']:''?>" /> - <input type="text" class="wcsendsmsdatepicker" name="perioada_final" value="<?=isset($_GET['perioada_final'])?$_GET['perioada_final']:''?>" /></p>
+                    <p><?=__('Perioada', 'wc_sendsms')?> <input type="text" class="wcsendsmsdatepicker" name="perioada_start" value="<?=isset($_GET['perioada_start'])?$_GET['perioada_start']:''?>" /> - <input type="text" class="wcsendsmsdatepicker" name="perioada_final" value="<?=isset($_GET['perioada_final'])?$_GET['perioada_final']:''?>" /></p>
                 </div>
                 <div style="width: 48%; float: left">
-                    <p>Suma minimă pe comandă: <input type="number" name="suma" value="<?=isset($_GET['suma'])?(int)$_GET['suma']:'0'?>" /></p>
+                    <p><?=__('Suma minimă pe comandă:', 'wc_sendsms')?> <input type="number" name="suma" value="<?=isset($_GET['suma'])?(int)$_GET['suma']:'0'?>" /></p>
                 </div>
                 <div style="width: 100%; clear: both;">
                     <div style="width: 48%; float: left;">
-                        <p>Produs cumpărat:
+                        <p><?=__('Produs cumpărat:', 'wc_sendsms')?>
                             <select name="produs">
-                                <option value="">- toate -</option>
+                                <option value="">- <?=__('toate', 'wc_sendsms')?> -</option>
                                 <?php
                                 if (count($products)) :
                                     foreach ($products as $product) :
@@ -511,9 +513,9 @@ function wc_sendsms_campaign()
                         </p>
                     </div>
                     <div style="width: 48%; float: left;">
-                        <p>Județ facturare:
+                        <p><?=__('Județ facturare:', 'wc_sendsms')?>
                             <select name="judet">
-                                <option value="">- toate -</option>
+                                <option value="">- <?=__('toate', 'wc_sendsms')?> -</option>
                                 <?php
                                 if (!empty($billing_states)) :
                                     foreach ($billing_states as $state) :
@@ -525,19 +527,19 @@ function wc_sendsms_campaign()
                     </div>
                 </div>
             </div>
-            <button type="submit" class="button button-default button-large">Filtrează</button>
+            <button type="submit" class="button button-default button-large"><?=__('Filtrează', 'wc_sendsms')?></button>
         </form>
         <hr />
-        <h3>Rezultate filtru: <?=count($phones)?> numere de telefon</h3>
+        <h3><?=__('Rezultate filtru:', 'wc_sendsms')?> <?=count($phones)?> <?=__('numere de telefon', 'wc_sendsms')?></h3>
         <div style="width: 100%; clear: both; padding-top: 20px;">
             <div style="width: 73%; float: left">
-                <div>Mesaj: <br />
+                <div><?=__('Mesaj:', 'wc_sendsms')?> <br />
                     <textarea name="content" class="wc_sendsms_content" id="wc_sendsms_content" style="width: 90%; height: 250px;" maxlength="160"></textarea>
-                    <p>160 caractere rămase</p>
+                    <p>160 <?=__('caractere rămase', 'wc_sendsms')?></p>
                 </div>
             </div>
             <div style="width: 25%; float: left">
-                <p>Telefoane: <br /></p>
+                <p><?=__('Telefoane:', 'wc_sendsms')?> <br /></p>
                 <select name="phones" id="wc_sendsms_phones" multiple style="width: 90%; height: 250px">
                     <?php
                     if (!empty($phones)) :
@@ -551,7 +553,7 @@ function wc_sendsms_campaign()
                 </select>
             </div>
         </div>
-        <p style="clear: both;"><button type="submit" class="button button-primary button-large" id="wc_sendsms_send_campaign">Trimite mesajul</button></p>
+        <p style="clear: both;"><button type="submit" class="button button-primary button-large" id="wc_sendsms_send_campaign"><?=__('Trimite mesajul', 'wc_sendsms')?></button></p>
     </div>
     <script type="text/javascript">
         var wc_sendsms_content = document.getElementsByClassName("wc_sendsms_content");
@@ -560,7 +562,7 @@ function wc_sendsms_campaign()
             wc_sendsms_element.onkeyup = function() {
                 var text_length = this.value.length;
                 var text_remaining = 160 - text_length;
-                this.nextElementSibling.innerHTML = text_remaining + " caractere rămase";
+                this.nextElementSibling.innerHTML = text_remaining + " <?=__('caractere rămase', 'wc_sendsms')?>";
             };
         }
     </script>
@@ -571,7 +573,7 @@ function wc_sendsms_javascript_send() { ?>
 	<script type="text/javascript" >
 	jQuery(document).ready(function($) {
 	    jQuery('#wc_sendsms_send_campaign').on('click', function() {
-	        jQuery('#wc_sendsms_send_campaign').html('Se trimite...');
+	        jQuery('#wc_sendsms_send_campaign').html('<?=__('Se trimite...', 'wc_sendsms')?>');
 	        jQuery('#wc_sendsms_send_campaign').attr('disabled', 'disabled');
 	        var data = {
                 'action': 'wc_sendsms_campaign',
@@ -580,7 +582,7 @@ function wc_sendsms_javascript_send() { ?>
             };
 
             jQuery.post(ajaxurl, data, function(response) {
-                jQuery('#wc_sendsms_send_campaign').html('Trimite mesajul');
+                jQuery('#wc_sendsms_send_campaign').html('<?=__('Trimite mesajul', 'wc_sendsms')?>');
 	            jQuery('#wc_sendsms_send_campaign').removeAttr('disabled');
 	            alert(response);
             });
@@ -599,13 +601,13 @@ function wc_sendsms_ajax_send() {
         if (!empty($options) && is_array($options) && isset($options['username'])) {
             $username = $options['username'];
         } else {
-            echo 'Nu ați introdus numele de utilizator';
+            echo __('Nu ați introdus numele de utilizator', 'wc_sendsms');
             wp_die();
         }
         if (!empty($options) && is_array($options) && isset($options['password'])) {
             $password = $options['password'];
         } else {
-            echo 'Nu ați introdus parola';
+            echo __('Nu ați introdus parola', 'wc_sendsms');
             wp_die();
         }
         if (!empty($options) && is_array($options) && isset($options['from'])) {
@@ -619,9 +621,9 @@ function wc_sendsms_ajax_send() {
                 wc_sendsms_send($username, $password, $phone, $_POST['content'], $from, 'campaign');
             }
         }
-        echo 'Mesajele au fost trimise';
+        echo __('Mesajele au fost trimise', 'wc_sendsms');
     } else {
-        echo 'Trebuie să completați mesajul și să alegeți cel puțin un număr de telefon';
+        echo __('Trebuie să completați mesajul și să alegeți cel puțin un număr de telefon', 'wc_sendsms');
     }
 	wp_die();
 }
@@ -685,7 +687,7 @@ function wc_sendsms_settings_display_from()
         $from = '';
     }
     echo '
-    <input id="wc_sendsms_settings_from" name="wc_sendsms_plugin_options[from]" type="text" value="'.$from.'" style="width: 400px;" /> <span>maxim 11 caractere alfa numerice</span>';
+    <input id="wc_sendsms_settings_from" name="wc_sendsms_plugin_options[from]" type="text" value="'.$from.'" style="width: 400px;" /> <span>'.__('maxim 11 caractere alfa numerice', 'wc_sendsms').'</span>';
 }
 
 function wc_sendsms_settings_display_simulation()
@@ -732,15 +734,15 @@ function wc_sendsms_settings_display_enabled()
 function wc_sendsms_settings_display_content()
 {
     $examples = array(
-        'wc-pending' => 'Comanda cu numarul {order_number} a fost plasata cu succes si va fi expediata imediat ce primim plata dvs in valoare de {order_total} RON. NumeSite.ro',
-        'wc-processing' => 'Comanda cu numarul {order_number} este in curs de procesare si urmeaza a fi livrata. NumeSite.ro',
-        'wc-on-hold' => 'Comanda cu numarul {order_number} este in asteptare, unul sau mai multe produse lipsesc',
-        'wc-completed' => 'Comanda {order_number} a fost pregatita si va fi predata catre Curier. Ramburs: {order_total} RON. Va multumim, NumeSite.ro',
-        'wc-cancelled' => 'Comanda cu numarul {order_number} a fost anulata. Pentru detalii: {contact_site} . NumeSite.ro',
-        'wc-refunded' => 'Cererea de restituire pentru comanda cu numarul {order_number} a fost finalizata. NumeSite.ro',
-        'wc-failed' => 'Exista o problema cu procesarea platii pentru comanda cu numarul {order_number}. Va rugam sa ne contactati. NumeSite.ro'
+        'wc-pending' => __('Comanda cu numarul {order_number} a fost plasata cu succes si va fi expediata imediat ce primim plata dvs in valoare de {order_total} RON. NumeSite.ro', 'wc_sendsms'),
+        'wc-processing' => __('Comanda cu numarul {order_number} este in curs de procesare si urmeaza a fi livrata. NumeSite.ro', 'wc_sendsms'),
+        'wc-on-hold' => __('Comanda cu numarul {order_number} este in asteptare, unul sau mai multe produse lipsesc', 'wc_sendsms'),
+        'wc-completed' => __('Comanda {order_number} a fost pregatita si va fi predata catre Curier. Ramburs: {order_total} RON. Va multumim, NumeSite.ro', 'wc_sendsms'),
+        'wc-cancelled' => __('Comanda cu numarul {order_number} a fost anulata. Pentru detalii: {contact_site} . NumeSite.ro', 'wc_sendsms'),
+        'wc-refunded' => __('Cererea de restituire pentru comanda cu numarul {order_number} a fost finalizata. NumeSite.ro', 'wc_sendsms'),
+        'wc-failed' => __('Exista o problema cu procesarea platii pentru comanda cu numarul {order_number}. Va rugam sa ne contactati. NumeSite.ro', 'wc_sendsms')
     );
-    echo '<p>Variabile disponibile: {billing_first_name}, {billing_last_name}, {shipping_first_name}, {shipping_last_name}, {order_number}, {order_date}, {order_total}</p><br />';
+    echo '<p>'.__('Variabile disponibile:', 'wc_sendsms').' {billing_first_name}, {billing_last_name}, {shipping_first_name}, {shipping_last_name}, {order_number}, {order_date}, {order_total}</p><br />';
     $options = get_option('wc_sendsms_plugin_options');
     if (!empty($options) && is_array($options) && isset($options['content'])) {
         $content = $options['content'];
@@ -759,12 +761,12 @@ function wc_sendsms_settings_display_content()
         <div style="width: 100%; clear: both;">
             <div style="width: 45%; float: left">
                 <textarea id="wc_sendsms_settings_content_'.$key.'" name="wc_sendsms_plugin_options[content]['.$key.']" style="width: 400px; height: 100px;" maxlength="160" class="wc_sendsms_content">'.(isset($content[$key])?$content[$key]:'').'</textarea>
-                <p>'.(160-strlen($content[$key])).' caractere rămase</p>
+                <p>'.(160-strlen($content[$key])).' '.__('caractere rămase', 'wc_sendsms').'</p>
             </div>
             <div style="width: 45%; float: left">
             ';
             if (isset($examples[$key])) {
-                echo 'Exemplu: '.$examples[$key];
+                echo __('Exemplu: ', 'wc_sendsms').$examples[$key];
             }
             echo '
             </div>
@@ -778,7 +780,7 @@ function wc_sendsms_settings_display_content()
                         wc_sendsms_element.onkeyup = function() {
                             var text_length = this.value.length;
                             var text_remaining = 160 - text_length;
-                            this.nextElementSibling.innerHTML = text_remaining + " caractere rămase";
+                            this.nextElementSibling.innerHTML = text_remaining + " '.__('caractere rămase', 'wc_sendsms').'";
                         };
                     }
                 </script>
@@ -871,7 +873,7 @@ function wc_sendsms_order_details_meta_box()
 {
     add_meta_box(
         'wc_sendsms_meta_box',
-        'Trimite SMS',
+        __('Trimite SMS', 'wc_sendsms'),
         'wc_sendsms_order_details_sms_box',
         'shop_order',
         'side',
@@ -883,14 +885,14 @@ function wc_sendsms_order_details_sms_box($post)
 {
     ?>
         <input type="hidden" name="wc_sendsms_order_id" id="wc_sendsms_order_id" value="<?=$post->ID?>" />
-        <p>Telefon:</p>
+        <p><?=__('Telefon:', 'wc_sendsms')?></p>
         <p><input type="text" name="wc_sendsms_phone" id="wc_sendsms_phone" style="width: 100%" /></p>
-        <p>Mesaj:</p>
+        <p><?=__('Mesaj:', 'wc_sendsms')?></p>
         <div>
             <textarea name="wc_sendsms_content" class="wc_sendsms_content" id="wc_sendsms_content" style="width: 100%; height: 100px;" maxlength="160"></textarea>
-            <p>160 caractere rămase</p>
+            <p>160 <?=__('caractere rămase', 'wc_sendsms')?></p>
         </div>
-        <p><button type="submit" class="button tips" id="wc_sendsms_send_single"><?=__('Trimite mesajul', 'wc-sendms')?></button></p>
+        <p><button type="submit" class="button tips" id="wc_sendsms_send_single"><?=__('Trimite mesajul', 'wc_sendms')?></button></p>
         <script type="text/javascript">
             var wc_sendsms_content = document.getElementsByClassName("wc_sendsms_content");
             for (var i = 0; i < wc_sendsms_content.length; i++) {
@@ -898,7 +900,7 @@ function wc_sendsms_order_details_sms_box($post)
                 wc_sendsms_element.onkeyup = function() {
                     var text_length = this.value.length;
                     var text_remaining = 160 - text_length;
-                    this.nextElementSibling.innerHTML = text_remaining + " caractere rămase";
+                    this.nextElementSibling.innerHTML = text_remaining + " <?=__('caractere rămase', 'wc_sendsms')?>";
                 };
             }
         </script>
@@ -909,7 +911,7 @@ function wc_sendsms_javascript_send_single() { ?>
 	<script type="text/javascript" >
 	jQuery(document).ready(function($) {
 	    jQuery('#wc_sendsms_send_single').on('click', function() {
-	        jQuery('#wc_sendsms_send_single').html('Se trimite...');
+	        jQuery('#wc_sendsms_send_single').html('<?=__('Se trimite...', 'wc_sendsms')?>');
 	        jQuery('#wc_sendsms_send_single').attr('disabled', 'disabled');
 	        var data = {
                 'action': 'wc_sendsms_single',
@@ -919,7 +921,7 @@ function wc_sendsms_javascript_send_single() { ?>
             };
 
             jQuery.post(ajaxurl, data, function(response) {
-                jQuery('#wc_sendsms_send_single').html('Trimite mesajul');
+                jQuery('#wc_sendsms_send_single').html('<?=__('Trimite mesajul', 'wc_sendsms')?>');
 	            jQuery('#wc_sendsms_send_single').removeAttr('disabled');
 	            jQuery('#wc_sendsms_phone').val('');
 	            jQuery('#wc_sendsms_content').val('');
@@ -939,13 +941,13 @@ function wc_sendsms_ajax_send_single() {
         if (!empty($options) && is_array($options) && isset($options['username'])) {
             $username = $options['username'];
         } else {
-            echo 'Nu ați introdus numele de utilizator';
+            echo __('Nu ați introdus numele de utilizator', 'wc_sendsms');
             wp_die();
         }
         if (!empty($options) && is_array($options) && isset($options['password'])) {
             $password = $options['password'];
         } else {
-            echo 'Nu ați introdus parola';
+            echo __('Nu ați introdus parola', 'wc_sendsms');
             wp_die();
         }
         if (!empty($options) && is_array($options) && isset($options['from'])) {
@@ -958,11 +960,11 @@ function wc_sendsms_ajax_send_single() {
                 wc_sendsms_send($username, $password, $phone, $_POST['content'], $from, 'single order');
                 global $woocommerce;
                 $order = new WC_Order($_POST['order']);
-                $order->add_order_note(__('Mesaj SMS trimis către '.$phone.': '.$_POST['content'],'wc-sendsms'));
+                $order->add_order_note(__('Mesaj SMS trimis către '.$phone.': '.$_POST['content'],'wc_sendsms'));
             }
-        echo 'Mesajul a fost trimis';
+        echo __('Mesajul a fost trimis', 'wc_sendsms');
     } else {
-        echo 'Trebuie să completați mesajul și un număr de telefon';
+        echo __('Trebuie să completați mesajul și un număr de telefon', 'wc_sendsms');
     }
 	wp_die();
 }
