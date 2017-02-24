@@ -2,7 +2,7 @@
 /*
 Plugin Name: SendSMS - WooCommerce
 Plugin URI: http://www.sendsms.ro
-Description: Acest modul permite trimiterea de sms-uri la schimbarea de status al comenzilor WooCommerce
+Description: Folositi solutia noastra de expedieri SMS pentru a livra informatia corecta la momentul potrivit. Oferiti clientilor dvs. o experienta superioara!
 Version: 1.0.0
 Author: sendSMS
 Author URI: http://www.sendsms.ro
